@@ -1,7 +1,20 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // The project sits under a home directory that contains an unrelated
+  // package-lock.json; pin the workspace root so Turbopack ignores it.
+  turbopack: { root: path.resolve(__dirname) },
+  // Puppeteer must not be bundled — it needs its own Chrome on disk.
+  serverExternalPackages: ["puppeteer", "exceljs"],
+  // The Word export reads the letterhead PNGs at request time through a path
+  // built from process.cwd() (src/lib/exports/docx.ts), which the output file
+  // tracer cannot follow. On a serverless host `public/` is served by the CDN
+  // and is absent from the function's filesystem, so without this the .docx
+  // export throws ENOENT in production while working fine locally.
+  outputFileTracingIncludes: {
+    "/*": ["public/letterhead/**/*"],
+  },
 };
 
 export default nextConfig;

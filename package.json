@@ -1,26 +1,64 @@
 {
-  "name": "scaffold-tmp",
+  "name": "viac-reports",
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "db": "tsx scripts/pg-dev.ts",
     "dev": "next dev",
     "build": "next build",
+    "build:deploy": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "deploy:push": "prisma db push",
+    "deploy:seed": "tsx prisma/seed.ts",
+    "lint": "eslint",
+    "prisma:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "prisma db push --force-reset && npm run db:seed",
+    "setup": "npm run prisma:generate && npm run db:push && npm run db:seed",
+    "check:routes": "tsx scripts/smoke.ts",
+    "check:exports": "tsx scripts/verify-exports.ts",
+    "check:flow": "tsx scripts/e2e-log-session.ts",
+    "check": "npm run check:routes && npm run check:exports && npm run check:flow",
+    "shots": "tsx scripts/screenshots.ts",
+    "shots:pdf": "tsx scripts/pdf-pages.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@prisma/client": "^6.16.2",
+    "bcryptjs": "^3.0.2",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "docx": "^9.5.1",
+    "exceljs": "^4.4.0",
+    "jose": "^6.1.0",
+    "lucide-react": "^0.548.0",
     "next": "16.3.0",
+    "puppeteer": "^24.23.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "recharts": "^2.15.4",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.3.1",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/adm-zip": "^0.5.8",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "adm-zip": "^0.6.0",
+    "dotenv": "^17.4.2",
+    "embedded-postgres": "^17.5.0-beta.15",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "pdfjs-dist": "^6.2.108",
+    "prisma": "^6.16.2",
     "tailwindcss": "^4",
+    "tsx": "^4.20.6",
     "typescript": "^5"
   }
 }

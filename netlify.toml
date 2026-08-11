@@ -1,0 +1,32 @@
+# Netlify deployment for VIAC Reports.
+#
+# Netlify's Next.js runtime (the OpenNext adapter) is detected automatically and
+# supports Next.js 16 with no extra configuration, so there is no plugin block
+# here on purpose.
+#
+# What Netlify cannot infer, and what this file pins:
+#   * Node 22 — Next 16 requires Node 20+
+#   * `prisma generate` before the build, so @prisma/client exists in the bundle
+#
+# Two things still have to be set in the Netlify UI before a deploy works:
+#   DATABASE_URL   a reachable Postgres (the local `npm run db` server is not)
+#   AUTH_SECRET    a long random string for signing the session cookie
+# See README.md → Deploying.
+
+[build]
+  command = "npm run build:deploy"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # Prisma downloads its query engine at install; keep it in the build cache.
+  PRISMA_CLIENT_ENGINE_TYPE = "library"
+  # Puppeteer pulls ~170 MB of Chrome at install that a function can never
+  # launch. Skipping it cuts the build; /api/export/pdf answers 501 and the
+  # PDF button prints from the browser instead.
+  PUPPETEER_SKIP_DOWNLOAD = "true"
+
+[[headers]]
+  for = "/letterhead/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

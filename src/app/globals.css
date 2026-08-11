@@ -1,26 +1,258 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ==========================================================================
+   VIAC design tokens
+
+   Two brand colours drive the whole product: blue #1CA3EC and gold #DDA328.
+   Each is expanded into a 50-900 ramp generated in OKLCH — lightness
+   interpolated out from the brand hex (which sits exactly on step 500), with a
+   small hue rotation as the ramp darkens so the deep steps stay recognisably
+   blue and gold instead of sliding into slate and mud.
+
+   The chart series steps were checked with the data-viz palette validator
+   (lightness band, chroma floor, protan/deutan/tritan separation, contrast):
+   blue-600 / gold-500 / teal / violet pass every hard gate on white. Gold sits
+   below 3:1 on white by nature, so every chart that uses it also ships value
+   labels and a table view — the required relief channel.
+   ========================================================================== */
+
+@theme {
+  /* --- brand: blue ------------------------------------------------------ */
+  --color-blue-50: #f4f6f9;
+  --color-blue-100: #d8e5ee;
+  --color-blue-200: #b3d5ed;
+  --color-blue-300: #81c7f2;
+  --color-blue-400: #2fb8f8;
+  --color-blue-500: #1ca3ec; /* VIAC blue */
+  --color-blue-600: #118ab9;
+  --color-blue-700: #116e92;
+  --color-blue-800: #13546d;
+  --color-blue-900: #123a4b;
+
+  /* --- brand: gold ------------------------------------------------------ */
+  --color-gold-50: #f9f6f1;
+  --color-gold-100: #f1e6d3;
+  --color-gold-200: #f0d5a4;
+  --color-gold-300: #f5c259;
+  --color-gold-400: #e9b330;
+  --color-gold-500: #dda328; /* VIAC gold */
+  --color-gold-600: #b08711;
+  --color-gold-700: #896a11;
+  --color-gold-800: #644e12;
+  --color-gold-900: #41340f;
+
+  /* --- neutrals: charcoal #2A2A2A with a whisper of the brand blue ------ */
+  --color-ink-50: #f6f6f6;
+  --color-ink-100: #dbddde;
+  --color-ink-200: #c1c5c7;
+  --color-ink-300: #a8adb0;
+  --color-ink-400: #909599;
+  --color-ink-500: #7a7e81;
+  --color-ink-600: #64686a;
+  --color-ink-700: #4f5254;
+  --color-ink-800: #3c3e3f;
+  --color-ink-900: #2a2a2a; /* VIAC charcoal */
+
+  /* --- surfaces --------------------------------------------------------- */
+  --color-canvas: #f1f2f4;
+  --color-surface: #ffffff;
+  --color-hairline: #e6e8eb;
+
+  /* --- status (reserved; never used as a series colour) ----------------- */
+  --color-success-50: #ecfdf3;
+  --color-success-500: #12855a;
+  --color-success-700: #0a5c3e;
+  --color-warning-50: #fff8eb;
+  --color-warning-500: #b7791f;
+  --color-warning-700: #8a5a13;
+  --color-danger-50: #fef3f2;
+  --color-danger-500: #c9372c;
+  --color-danger-700: #99271e;
+
+  /* --- chart series (validated set) ------------------------------------- */
+  --color-series-1: #118ab9;
+  --color-series-2: #dda328;
+  --color-series-3: #0f8c77;
+  --color-series-4: #6e56cf;
+  --color-grid: #eceef1;
+  --color-axis: #c1c5c7;
+
+  /* --- typography ------------------------------------------------------- */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
+  /* --- radii: 12-16px cards, per the brief ------------------------------ */
+  --radius-card: 1rem;
+  --radius-tile: 0.875rem;
+  --radius-control: 0.625rem;
+
+  /* --- elevation: soft and layered, never heavy ------------------------- */
+  --shadow-tile: 0 1px 2px rgba(20, 28, 36, 0.04),
+    0 1px 3px rgba(20, 28, 36, 0.05);
+  --shadow-card: 0 1px 2px rgba(20, 28, 36, 0.04),
+    0 4px 12px -2px rgba(20, 28, 36, 0.06);
+  --shadow-lifted: 0 2px 4px rgba(20, 28, 36, 0.05),
+    0 12px 28px -6px rgba(20, 28, 36, 0.12);
+  --shadow-pop: 0 8px 16px -4px rgba(20, 28, 36, 0.1),
+    0 24px 48px -12px rgba(20, 28, 36, 0.18);
+
+  /* --- motion ----------------------------------------------------------- */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-rise: rise 0.4s var(--ease-out-soft) both;
+  --animate-fade: fade 0.25s var(--ease-out-soft) both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-toast-in: toast-in 0.28s var(--ease-out-soft) both;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes shimmer {
+  from {
+    background-position: -180% 0;
+  }
+  to {
+    background-position: 180% 0;
+  }
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    border-color: var(--color-hairline);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink-900);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Numbers line up in columns; big display figures stay proportional. */
+  th,
+  td,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background-color: var(--color-blue-200);
+    color: var(--color-blue-900);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-blue-500);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  /* A quieter scrollbar inside panels. */
+  .scroll-slim {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-ink-200) transparent;
+  }
+  .scroll-slim::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scroll-slim::-webkit-scrollbar-thumb {
+    background-color: var(--color-ink-200);
+    border-radius: 999px;
+  }
+  .scroll-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  /* Loading skeleton — a shimmer, never a spinner. */
+  .skeleton {
+    background-image: linear-gradient(
+      100deg,
+      var(--color-ink-100) 20%,
+      var(--color-ink-50) 42%,
+      var(--color-ink-100) 62%
+    );
+    background-size: 220% 100%;
+    animation: var(--animate-shimmer);
+    border-radius: 0.5rem;
+  }
+
+  /* The faint blue wash behind page headers and the sidebar. */
+  .brand-wash {
+    background-image:
+      radial-gradient(
+        90rem 40rem at 8% -18%,
+        rgba(28, 163, 236, 0.1),
+        transparent 60%
+      ),
+      radial-gradient(
+        60rem 30rem at 92% -10%,
+        rgba(221, 163, 40, 0.08),
+        transparent 55%
+      );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Printed / PDF pages carry the letterhead themselves — drop app chrome. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #ffffff;
+  }
 }

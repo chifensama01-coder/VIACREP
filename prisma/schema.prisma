@@ -1,0 +1,331 @@
+// VIAC Reports — data model
+//
+// This mirrors the `Data_Entry` sheet of Vision_In_Action_Reporting_Template.xlsx.
+// A Session is one row of that sheet; SessionCount reproduces the key-population ×
+// sex count matrix as rows rather than columns, so VIAC can add a population
+// without a schema change.
+
+generator client {
+  provider = "prisma-client-js"
+  // Prisma ships a per-platform query engine, and a deployed function does not
+  // run the developer's OS — without a matching target the first query throws
+  // "Query engine binary could not be found". Netlify Functions and Vercel both
+  // run on Amazon Linux (rhel); debian covers container and Cloud Run style
+  // hosts. Each engine is ~17 MB and Netlify caps a function bundle at 50 MB,
+  // so if a deploy fails on size, drop the target the host does not use.
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OFFICER
+  COORDINATOR
+  APPROVER
+}
+
+enum Sex {
+  MALE
+  FEMALE
+}
+
+enum ReportFormat {
+  PDF
+  DOCX
+  XLSX
+}
+
+enum NarrativeStatus {
+  DRAFT
+  FINAL
+}
+
+/// Single-tenant for the demo: one row holding VIAC's letterhead, brand tokens
+/// and the default narrative text carried into a brand-new reporting period.
+model Organization {
+  id             String @id @default(cuid())
+  name           String
+  shortName      String
+  headerImageUrl String
+  footerImageUrl String
+  /// Brand palette + typography tokens, so the letterhead can be re-themed
+  /// without a deploy.
+  brandTokens    Json
+
+  defaultObjectives      String @db.Text
+  defaultMethodology     String @db.Text
+  defaultLessonsLearnt   String @db.Text
+  defaultChallenges      String @db.Text
+  defaultRecommendations String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id           String  @id @default(cuid())
+  name         String
+  email        String  @unique
+  passwordHash String
+  role         Role    @default(OFFICER)
+  designation  String?
+
+  /// Officers are scoped to a division; coordinators and approvers see everything.
+  divisionId String?
+  division   Division? @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+
+  sessions          Session[]
+  facilitatorOf     SessionFacilitator[]
+  narrativePeriods  NarrativePeriod[]
+  reports           Report[]
+  communitiesAdded  Community[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([divisionId])
+}
+
+// ---------------------------------------------------------------------------
+// Geography — Region → Division → Subdivision → Community
+// Seeded from `Sheet1`; new communities can be added by coordinators.
+// ---------------------------------------------------------------------------
+
+model Region {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  sortOrder Int        @default(0)
+  divisions Division[]
+}
+
+model Division {
+  id           String        @id @default(cuid())
+  name         String
+  sortOrder    Int           @default(0)
+  regionId     String
+  region       Region        @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  subdivisions Subdivision[]
+  users        User[]
+
+  @@unique([regionId, name])
+}
+
+model Subdivision {
+  id          String      @id @default(cuid())
+  name        String
+  sortOrder   Int         @default(0)
+  divisionId  String
+  division    Division    @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  communities Community[]
+
+  @@unique([divisionId, name])
+}
+
+model Community {
+  id            String      @id @default(cuid())
+  name          String
+  sortOrder     Int         @default(0)
+  subdivisionId String
+  subdivision   Subdivision @relation(fields: [subdivisionId], references: [id], onDelete: Cascade)
+
+  /// True for communities typed in by staff rather than seeded from the workbook.
+  isCustom    Boolean @default(false)
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  sessions  Session[]
+  createdAt DateTime  @default(now())
+
+  @@unique([subdivisionId, name])
+  @@index([name])
+}
+
+// ---------------------------------------------------------------------------
+// Lookups — seeded from the workbook's dropdowns, all extendable
+// ---------------------------------------------------------------------------
+
+model Project {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  sessions  Session[]
+}
+
+model ThematicArea {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  sessions  Session[]
+}
+
+model ActivityType {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  sessions  Session[]
+}
+
+model AgeGroup {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  sessions  Session[]
+}
+
+/// One row per key population tracked in the count matrix. `tracksMale` /
+/// `tracksFemale` reproduce the sheet's asymmetric columns (AGYW is female-only,
+/// AYBM male-only). The `export*` fields let the Excel export rebuild
+/// `Data_Entry`'s exact — and rather idiosyncratic — header row.
+model KeyPopulation {
+  id           String  @id @default(cuid())
+  name         String  @unique
+  shortName    String
+  tracksMale   Boolean @default(true)
+  tracksFemale Boolean @default(true)
+  maleLabel    String  @default("Male")
+  femaleLabel  String  @default("Female")
+
+  exportGroupLabel  String
+  exportMaleHeader  String?
+  exportFemaleHeader String?
+
+  sortOrder Int            @default(0)
+  isActive  Boolean        @default(true)
+  counts    SessionCount[]
+}
+
+// ---------------------------------------------------------------------------
+// Sessions — one row of `Data_Entry`
+// ---------------------------------------------------------------------------
+
+model Session {
+  id   String   @id @default(cuid())
+  /// Week and month are derived from this, exactly as the sheet's
+  /// WEEKNUM() / TEXT(date,"mmm-yyyy") formulas do.
+  date DateTime @db.Date
+
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id])
+
+  projectId      String?
+  project        Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  thematicAreaId String?
+  thematicArea   ThematicArea? @relation(fields: [thematicAreaId], references: [id], onDelete: SetNull)
+  ageGroupId     String?
+  ageGroup       AgeGroup?     @relation(fields: [ageGroupId], references: [id], onDelete: SetNull)
+  activityTypeId String?
+  activityType   ActivityType? @relation(fields: [activityTypeId], references: [id], onDelete: SetNull)
+
+  notes String? @db.Text
+
+  /// Denormalised sum of `counts`, kept in step on every write. Mirrors the
+  /// sheet's TOTAL column and keeps dashboard aggregates to a single scan.
+  totalParticipants Int @default(0)
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  facilitators SessionFacilitator[]
+  counts       SessionCount[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([communityId])
+  @@index([projectId])
+  @@index([thematicAreaId])
+  @@index([createdById])
+}
+
+model SessionFacilitator {
+  id        String  @id @default(cuid())
+  sessionId String
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  name      String
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId])
+}
+
+model SessionCount {
+  id              String        @id @default(cuid())
+  sessionId       String
+  session         Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  keyPopulationId String
+  keyPopulation   KeyPopulation @relation(fields: [keyPopulationId], references: [id], onDelete: Cascade)
+  sex             Sex
+  count           Int           @default(0)
+
+  @@unique([sessionId, keyPopulationId, sex])
+  @@index([keyPopulationId])
+}
+
+// ---------------------------------------------------------------------------
+// Reporting
+// ---------------------------------------------------------------------------
+
+/// The typed half of a report: the five narrative sections staff write, stored
+/// per scope so the next period can carry them forward as a starting point.
+model NarrativePeriod {
+  id String @id @default(cuid())
+
+  /// Canonical string form of `scope`, e.g. "monthly:2026-03" — used to find
+  /// the narrative for a scope and to order carry-forward candidates.
+  scopeKey    String   @unique
+  scope       Json
+  title       String
+  periodStart DateTime @db.Date
+  periodEnd   DateTime @db.Date
+
+  objectives      String @db.Text
+  methodology     String @db.Text
+  lessonsLearnt   String @db.Text
+  challenges      String @db.Text
+  recommendations String @db.Text
+
+  preparedBy           String?
+  preparedDesignation  String?
+  approvedBy           String?
+  approvedDesignation  String?
+
+  status NarrativeStatus @default(DRAFT)
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  reports Report[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([periodStart])
+}
+
+/// An audit trail of every document generated, so VIAC can see what went out.
+model Report {
+  id    String @id @default(cuid())
+  scope Json
+  title String
+
+  narrativePeriodId String?
+  narrativePeriod   NarrativePeriod? @relation(fields: [narrativePeriodId], references: [id], onDelete: SetNull)
+
+  format      ReportFormat
+  fileName    String
+  fileUrl     String?
+  generatedAt DateTime     @default(now())
+
+  generatedById String
+  generatedBy   User   @relation(fields: [generatedById], references: [id])
+
+  @@index([generatedAt])
+}
